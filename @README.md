@@ -1,36 +1,38 @@
 # Руководство по развертыванию проекта "КороткоСсылка"
 
-## Архитектура кластера
+## Сетевая топология кластера
 
-Проект реализован на основе микросервисной архитектуры и разворачивается на 4-х серверах:
+Проект развертывается в локальной сети 192.168.100.0/24 на 4-х серверах:
 
-1. **Сервер 1 (Координатор)**:
+**Сервер 1 (Координатор)**:
 
-   - Nginx-балансировщик
-   - DNS-сервер (dnsmasq)
+- IP: 192.168.100.10
+- Hostname: coordinator.korotkossylka.local
+- Роли: Nginx-балансировщик, DNS-сервер (dnsmasq)
 
-2. **Сервер 2 (Frontend)**:
+**Сервер 2 (Frontend)**:
 
-   - Vue.js приложение
-   - Nginx для статических файлов
+- IP: 192.168.100.20
+- Hostname: frontend.korotkossylka.local
+- Роли: Vue.js приложение, Nginx для статических файлов
 
-3. **Сервер 3 (Backend)**:
+**Сервер 3 (Backend)**:
 
-   - Node.js API-сервер
-   - Масштабируемые экземпляры
+- IP: 192.168.100.30
+- Hostname: backend.korotkossylka.local
+- Роли: Node.js API-сервер, масштабируемые экземпляры
 
-4. **Сервер 4 (Данные и мониторинг)**:
-   - MongoDB
-   - Сервис резервного копирования
-   - Grafana
-   - Prometheus
-   - Экспортеры для мониторинга
+**Сервер 4 (Данные и мониторинг)**:
+
+- IP: 192.168.100.40
+- Hostname: db.korotkossylka.local
+- Роли: MongoDB, сервис резервного копирования, Grafana, Prometheus
 
 ## Базовая настройка серверов
 
 ### Настройка сети
 
-#### Сервер 1 (Координатор - Nginx, DNS)
+#### Сервер 1 (Координатор)
 
 ```bash
 # Редактируем /etc/network/interfaces
@@ -44,9 +46,9 @@ iface lo inet loopback
 # Основной сетевой интерфейс
 auto ens33
 iface ens33 inet static
-    address 192.168.1.10
+    address 192.168.100.10
     netmask 255.255.255.0
-    gateway 192.168.1.1
+    gateway 192.168.100.1
     dns-nameservers 8.8.8.8 8.8.4.4
 
 # Перезапускаем сеть
@@ -67,10 +69,10 @@ iface lo inet loopback
 # Основной сетевой интерфейс
 auto ens33
 iface ens33 inet static
-    address 192.168.1.11
+    address 192.168.100.20
     netmask 255.255.255.0
-    gateway 192.168.1.1
-    dns-nameservers 192.168.1.10 8.8.8.8
+    gateway 192.168.100.1
+    dns-nameservers 192.168.100.10 8.8.8.8
 
 # Перезапускаем сеть
 sudo systemctl restart networking
@@ -90,10 +92,10 @@ iface lo inet loopback
 # Основной сетевой интерфейс
 auto ens33
 iface ens33 inet static
-    address 192.168.1.12
+    address 192.168.100.30
     netmask 255.255.255.0
-    gateway 192.168.1.1
-    dns-nameservers 192.168.1.10 8.8.8.8
+    gateway 192.168.100.1
+    dns-nameservers 192.168.100.10 8.8.8.8
 
 # Перезапускаем сеть
 sudo systemctl restart networking
@@ -113,205 +115,220 @@ iface lo inet loopback
 # Основной сетевой интерфейс
 auto ens33
 iface ens33 inet static
-    address 192.168.1.13
+    address 192.168.100.40
     netmask 255.255.255.0
-    gateway 192.168.1.1
-    dns-nameservers 192.168.1.10 8.8.8.8
+    gateway 192.168.100.1
+    dns-nameservers 192.168.100.10 8.8.8.8
 
 # Перезапускаем сеть
 sudo systemctl restart networking
 ```
 
-### Настройка SSH
+### Настройка DNS-сервера (dnsmasq) на координаторе
 
-На каждом сервере:
-
-```bash
-# Установка SSH
-sudo apt update
-sudo apt install openssh-server -y
-
-# Настройка безопасности
-sudo nano /etc/ssh/sshd_config
-
-# Добавляем/изменяем следующие настройки:
-Port 22
-PermitRootLogin no
-PubkeyAuthentication yes
-PasswordAuthentication no
-PermitEmptyPasswords no
-
-# Перезапуск SSH
-sudo systemctl restart sshd
-```
-
-#### Настройка SSH-ключей
-
-На управляющей машине (вашем компьютере):
+После настройки статических IP-адресов, нужно обновить конфигурацию DNS-сервера на координаторе.
 
 ```bash
-# Создание SSH-ключа
-ssh-keygen -t ed25519 -C "admin@korotkossylka"
+# На сервере 1 (Координатор)
+sudo nano /etc/dnsmasq.hosts
 
-# Копирование ключа на каждый сервер
-ssh-copy-id -i ~/.ssh/id_ed25519.pub user@192.168.1.10
-ssh-copy-id -i ~/.ssh/id_ed25519.pub user@192.168.1.11
-ssh-copy-id -i ~/.ssh/id_ed25519.pub user@192.168.1.12
-ssh-copy-id -i ~/.ssh/id_ed25519.pub user@192.168.1.13
+# Добавьте следующие записи
+192.168.100.10 coordinator.korotkossylka.local nginx.korotkossylka.local
+192.168.100.20 frontend.korotkossylka.local
+192.168.100.30 backend.korotkossylka.local
+192.168.100.40 db.korotkossylka.local mongodb.korotkossylka.local grafana.korotkossylka.local prometheus.korotkossylka.local
+
+# Перезапустите dnsmasq
+sudo systemctl restart dnsmasq
 ```
 
-## Настройка с помощью Ansible
-
-### Установка Ansible
-
-```bash
-sudo apt update
-sudo apt install ansible -y
-```
-
-### Создание структуры Ansible
-
-```bash
-mkdir -p ~/korotkossylka-deploy/{playbooks,inventory,files}
-cd ~/korotkossylka-deploy
-```
-
-### Настройка inventory
-
-Создайте файл `inventory/hosts.ini`:
+### Обновленный inventory.ini для Ansible
 
 ```ini
 [coordinator]
-server1 ansible_host=192.168.1.10
+coordinator ansible_host=192.168.100.10
 
 [frontend]
-server2 ansible_host=192.168.1.11
+frontend ansible_host=192.168.100.20
 
 [backend]
-server3 ansible_host=192.168.1.12
+backend ansible_host=192.168.100.30
 
 [database]
-server4 ansible_host=192.168.1.13
+database ansible_host=192.168.100.40
 
 [monitoring]
-server4 ansible_host=192.168.1.13
+monitoring ansible_host=192.168.100.40
 
 [all:vars]
-ansible_user=your_username
+ansible_user=korotkossylka
 ansible_ssh_private_key_file=~/.ssh/id_ed25519
 ansible_become=yes
 ansible_become_method=sudo
 ```
 
-### Playbooks для настройки серверов
+## Настройка GitHub Actions Workflows
 
-#### 1. Установка Docker
+Для обеспечения работы CI/CD-пайплайнов необходимо настроить GitHub Actions для взаимодействия с нашей инфраструктурой.
 
-Создайте файл `playbooks/setup-docker.yml`:
+### Настройка секретов в GitHub Repository
+
+В настройках вашего GitHub репозитория добавьте следующие секреты:
+
+1. `DOCKER_HUB_USERNAME` - имя пользователя Docker Hub
+2. `DOCKER_HUB_ACCESS_TOKEN` - токен доступа Docker Hub
+3. `SSH_PRIVATE_KEY` - приватный SSH-ключ для подключения к серверам
+4. `COORDINATOR_HOST` - IP-адрес координатора (192.168.100.10)
+5. `FRONTEND_HOST` - IP-адрес сервера с фронтендом (192.168.100.20)
+6. `BACKEND_HOST` - IP-адрес сервера с бэкендом (192.168.100.30)
+7. `DATABASE_HOST` - IP-адрес сервера с базой данных (192.168.100.40)
+
+### Создание deploy-workflow.yml для развертывания на серверах
+
+Создайте файл `.github/workflows/deploy.yml` в вашем репозитории:
 
 ```yaml
----
-- name: Установка Docker на все серверы
-  hosts: all
-  tasks:
-    - name: Установка необходимых пакетов
-      apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - gnupg
-          - lsb-release
-        state: present
-        update_cache: yes
+name: Deploy to Production
 
-    - name: Добавление ключа Docker GPG
-      apt_key:
-        url: https://download.docker.com/linux/debian/gpg
-        state: present
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - '**/*'
+      - '!README.md'
+      - '!.github/workflows/frontend.yml'
+      - '!.github/workflows/backend.yml'
+      - '!.gitignore'
 
-    - name: Добавление репозитория Docker
-      apt_repository:
-        repo: 'deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable'
-        state: present
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Установка Docker Engine
-      apt:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-compose-plugin
-        state: present
-        update_cache: yes
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Установка Docker Compose
-      get_url:
-        url: https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-linux-x86_64
-        dest: /usr/local/bin/docker-compose
-        mode: '0755'
+      - name: Add hosts to known_hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.COORDINATOR_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.FRONTEND_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.BACKEND_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.DATABASE_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Добавление текущего пользователя в группу docker
-      user:
-        name: '{{ ansible_user }}'
-        groups: docker
-        append: yes
+      - name: Install Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
 
-    - name: Запуск и включение сервиса Docker
-      systemd:
-        name: docker
-        state: started
-        enabled: yes
+      - name: Create inventory file
+        run: |
+          echo "[coordinator]" > inventory.ini
+          echo "coordinator ansible_host=${{ secrets.COORDINATOR_HOST }}" >> inventory.ini
+          echo "[frontend]" >> inventory.ini
+          echo "frontend ansible_host=${{ secrets.FRONTEND_HOST }}" >> inventory.ini
+          echo "[backend]" >> inventory.ini
+          echo "backend ansible_host=${{ secrets.BACKEND_HOST }}" >> inventory.ini
+          echo "[database]" >> inventory.ini
+          echo "database ansible_host=${{ secrets.DATABASE_HOST }}" >> inventory.ini
+          echo "[monitoring]" >> inventory.ini
+          echo "monitoring ansible_host=${{ secrets.DATABASE_HOST }}" >> inventory.ini
+          echo "[all:vars]" >> inventory.ini
+          echo "ansible_user=korotkossylka" >> inventory.ini
+          echo "ansible_become=yes" >> inventory.ini
+          echo "ansible_become_method=sudo" >> inventory.ini
+
+      - name: Copy project files
+        run: |
+          ansible-playbook -i inventory.ini CI-CD/ansible/copy-files.yml
+
+      - name: Deploy services
+        run: |
+          ansible-playbook -i inventory.ini CI-CD/ansible/deploy-services.yml
 ```
 
-#### 2. Копирование файлов проекта
+### Обновление nginx.conf для новых IP-адресов
 
-Создайте файл `playbooks/copy-files.yml`:
+Отредактируйте файл `CI-CD/docker/nginx/nginx.conf` для использования правильных IP-адресов:
 
-```yaml
+```bash
+# Создайте playbook для обновления конфигурации Nginx
+cat > update-nginx-config.yml << EOF
 ---
-- name: Копирование файлов проекта
-  hosts: all
-  tasks:
-    - name: Создание директории проекта
-      file:
-        path: /opt/korotkossylka
-        state: directory
-        mode: '0755'
-
-    - name: Копирование файлов CI-CD
-      copy:
-        src: ../CI-CD/
-        dest: /opt/korotkossylka/CI-CD/
-        mode: preserve
-```
-
-#### 3. Настройка DNS-сервера
-
-Создайте файл `playbooks/setup-dns.yml`:
-
-```yaml
----
-- name: Настройка DNS-сервера
+- name: Обновление конфигурации Nginx
   hosts: coordinator
   tasks:
-    - name: Проверка, запущен ли DNS контейнер
-      shell: docker ps | grep dnsmasq
-      register: dns_container
-      ignore_errors: yes
+    - name: Обновление upstream серверов в конфигурации
+      replace:
+        path: /opt/korotkossylka/CI-CD/docker/nginx/nginx.conf
+        regexp: 'server backend1:3000'
+        replace: 'server 192.168.100.30:3000'
 
-    - name: Запуск DNS контейнера
+    - name: Обновление upstream фронтенд серверов
+      replace:
+        path: /opt/korotkossylka/CI-CD/docker/nginx/nginx.conf
+        regexp: 'server frontend1:80'
+        replace: 'server 192.168.100.20:80'
+
+    - name: Перезапуск Nginx
       shell: |
         cd /opt/korotkossylka
-        docker-compose -f CI-CD/docker-compose.yml up -d dnsmasq
-      when: dns_container.rc != 0
+        docker-compose -f CI-CD/docker-compose.yml restart nginx
+EOF
+
+# Выполните playbook
+ansible-playbook -i inventory.ini update-nginx-config.yml
 ```
 
-#### 4. Обновление hosts-файлов
+## Интеграция GitHub Actions с локальным развертыванием
 
-Создайте файл `playbooks/update-hosts.yml`:
+Для интеграции GitHub Actions с локальным кластером (без публичного доступа) настройте VPN или SSH-туннель:
 
-```yaml
+```bash
+# На каждом сервере установите wireguard для создания безопасной VPN
+sudo apt install -y wireguard
+
+# Создайте конфигурацию wireguard на координаторе (пример)
+cat > /etc/wireguard/wg0.conf << EOF
+[Interface]
+Address = 10.0.0.1/24
+ListenPort = 51820
+PrivateKey = <coordinator-private-key>
+
+# Frontend
+[Peer]
+PublicKey = <frontend-public-key>
+AllowedIPs = 10.0.0.2/32
+
+# Backend
+[Peer]
+PublicKey = <backend-public-key>
+AllowedIPs = 10.0.0.3/32
+
+# Database
+[Peer]
+PublicKey = <database-public-key>
+AllowedIPs = 10.0.0.4/32
+
+# GitHub Actions Runner
+[Peer]
+PublicKey = <github-runner-public-key>
+AllowedIPs = 10.0.0.5/32
+EOF
+
+# Активируйте wireguard на всех серверах
+sudo systemctl enable wg-quick@wg0
+sudo systemctl start wg-quick@wg0
+```
+
+## Обновленные настройки hosts-файлов
+
+```bash
+# Создайте playbook для обновления hosts-файлов
+cat > update-hosts.yml << EOF
 ---
 - name: Обновление файла hosts
   hosts: all
@@ -322,79 +339,80 @@ ansible_become_method=sudo
         line: '{{ item }}'
         state: present
       loop:
-        - '192.168.1.10 coordinator.korotkossylka.local nginx.korotkossylka.local'
-        - '192.168.1.11 frontend.korotkossylka.local'
-        - '192.168.1.12 backend.korotkossylka.local'
-        - '192.168.1.13 mongodb.korotkossylka.local grafana.korotkossylka.local prometheus.korotkossylka.local'
+        - '192.168.100.10 coordinator.korotkossylka.local nginx.korotkossylka.local'
+        - '192.168.100.20 frontend.korotkossylka.local'
+        - '192.168.100.30 backend.korotkossylka.local'
+        - '192.168.100.40 db.korotkossylka.local mongodb.korotkossylka.local grafana.korotkossylka.local prometheus.korotkossylka.local'
+EOF
+
+# Выполните playbook
+ansible-playbook -i inventory.ini update-hosts.yml
 ```
 
-#### 5. Развертывание сервисов
+## Автоматизированное обновление и масштабирование с GitHub Actions
 
-Создайте файл `playbooks/deploy-services.yml`:
+Создайте файл `.github/workflows/scale.yml` для масштабирования сервисов:
 
 ```yaml
----
-- name: Развертывание Frontend
-  hosts: frontend
-  tasks:
-    - name: Запуск Frontend сервисов
-      shell: |
-        cd /opt/korotkossylka
-        docker-compose -f CI-CD/docker-compose.yml up -d frontend
+name: Scale Services
 
-- name: Развертывание Backend
-  hosts: backend
-  tasks:
-    - name: Запуск Backend сервисов
-      shell: |
-        cd /opt/korotkossylka
-        docker-compose -f CI-CD/docker-compose.yml up -d backend
+on:
+  workflow_dispatch:
+    inputs:
+      frontend_replicas:
+        description: 'Количество реплик Frontend'
+        required: true
+        default: '2'
+      backend_replicas:
+        description: 'Количество реплик Backend'
+        required: true
+        default: '3'
 
-- name: Развертывание MongoDB и мониторинга
-  hosts: database, monitoring
-  tasks:
-    - name: Запуск MongoDB и связанных сервисов
-      shell: |
-        cd /opt/korotkossylka
-        docker-compose -f CI-CD/docker-compose.yml up -d mongodb backup
+jobs:
+  scale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Запуск сервисов мониторинга
-      shell: |
-        cd /opt/korotkossylka
-        docker-compose -f CI-CD/docker-compose.yml up -d grafana prometheus node-exporter cadvisor mongodb-exporter
+      - name: Add hosts to known_hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.FRONTEND_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.BACKEND_HOST }} >> ~/.ssh/known_hosts
 
-- name: Настройка Nginx на координаторе
-  hosts: coordinator
-  tasks:
-    - name: Обновление конфигурации Nginx
-      shell: |
-        # Обновление конфигурации Nginx для работы с реальными адресами серверов
-        sed -i 's/server backend1:3000/server 192.168.1.12:3000/g' /opt/korotkossylka/CI-CD/docker/nginx/nginx.conf
-        sed -i 's/server frontend1:80/server 192.168.1.11:80/g' /opt/korotkossylka/CI-CD/docker/nginx/nginx.conf
+      - name: Scale Frontend
+        run: |
+          ssh korotkossylka@${{ secrets.FRONTEND_HOST }} "cd /opt/korotkossylka && docker-compose -f CI-CD/docker-compose.yml up -d --scale frontend=${{ github.event.inputs.frontend_replicas }}"
 
-    - name: Запуск Nginx балансировщика
-      shell: |
-        cd /opt/korotkossylka
-        docker-compose -f CI-CD/docker-compose.yml up -d nginx
+      - name: Scale Backend
+        run: |
+          ssh korotkossylka@${{ secrets.BACKEND_HOST }} "cd /opt/korotkossylka && docker-compose -f CI-CD/docker-compose.yml up -d --scale backend=${{ github.event.inputs.backend_replicas }}"
 ```
 
-### Выполнение развертывания
+## Обновление Docker Compose для сетевых настроек
 
-```bash
-# 1. Установка Docker на все серверы
-ansible-playbook -i inventory/hosts.ini playbooks/setup-docker.yml
+Обновите файл `CI-CD/docker-compose.yml` для работы с внешними IP-адресами:
 
-# 2. Копирование файлов проекта
-ansible-playbook -i inventory/hosts.ini playbooks/copy-files.yml
-
-# 3. Обновление hosts-файлов
-ansible-playbook -i inventory/hosts.ini playbooks/update-hosts.yml
-
-# 4. Запуск DNS-сервера на координаторе
-ansible-playbook -i inventory/hosts.ini playbooks/setup-dns.yml
-
-# 5. Развертывание всех сервисов
-ansible-playbook -i inventory/hosts.ini playbooks/deploy-services.yml
+```yaml
+# Добавьте эту секцию в networks для обеспечения доступа между серверами
+networks:
+  web:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  db:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+  monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
 ```
 
 ## Проверка развернутой инфраструктуры
