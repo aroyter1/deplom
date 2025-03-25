@@ -1,202 +1,241 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useLinksStore } from '@/stores/links'
-
-const linksStore = useLinksStore()
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
 
 const originalUrl = ref('')
-const customAlias = ref('')
-const showQRCode = ref(false)
+const alias = ref('')
+const loading = ref(false)
+const error = ref('')
+const success = ref(false)
+const shortUrl = ref('')
+const copied = ref(false)
+const authStore = useAuthStore()
+const router = useRouter()
 
-const isValidUrl = (url: string) => {
-  try {
-    new URL(url)
-    return true
-  } catch (e) {
-    return false
-  }
-}
+// Вычисляемое свойство для получения текущего хоста
+const currentHost = computed(() => {
+  return window.location.host
+})
+
+// Вычисляемое свойство для плейсхолдера
+const urlPlaceholder = computed(() => {
+  return `https://example.com/long-url-here`
+})
 
 const createLink = async () => {
-  try {
-    await linksStore.createShortLink({
-      originalUrl: originalUrl.value,
-      alias: customAlias.value || undefined,
-    })
+  if (!originalUrl.value) {
+    error.value = 'Введите URL для сокращения'
+    return
+  }
 
-    // Сбрасываем форму
-    customAlias.value = ''
-  } catch (error) {
-    console.error('Ошибка при создании ссылки:', error)
+  loading.value = true
+  error.value = ''
+  success.value = false
+
+  try {
+    const response = await axios.post(
+      '/api/links',
+      {
+        originalUrl: originalUrl.value,
+        alias: alias.value || undefined,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+        },
+      }
+    )
+
+    shortUrl.value = response.data.shortUrl
+    success.value = true
+    originalUrl.value = ''
+    alias.value = ''
+  } catch (err: any) {
+    console.error('Ошибка при создании ссылки:', err)
+
+    if (err.response) {
+      error.value = err.response.data.message || 'Ошибка при создании ссылки'
+    } else {
+      error.value = 'Ошибка соединения с сервером'
+    }
+  } finally {
+    loading.value = false
   }
 }
 
-const toggleQRCode = () => {
-  showQRCode.value = !showQRCode.value
+const copyToClipboard = async () => {
+  try {
+    await navigator.clipboard.writeText(shortUrl.value)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('Не удалось скопировать в буфер обмена:', err)
+  }
 }
 
-const copyLinkToClipboard = () => {
-  if (!linksStore.currentLink?.shortUrl) return
-
-  navigator.clipboard
-    .writeText(linksStore.currentLink.shortUrl)
-    .then(() => {
-      alert('Ссылка скопирована в буфер обмена')
-    })
-    .catch((err) => {
-      console.error('Ошибка при копировании:', err)
-    })
+const goToMyLinks = () => {
+  router.push('/my-links')
 }
 </script>
 
 <template>
-  <div>
-    <h2 class="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">
-      Создать короткую ссылку
+  <div
+    class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 max-w-3xl mx-auto"
+  >
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+      Сократить ссылку
     </h2>
 
-    <form @submit.prevent="createLink" class="space-y-6">
-      <div>
+    <div v-if="!success">
+      <div class="mb-4">
         <label
-          for="originalUrl"
+          for="url"
           class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
         >
-          Ваша ссылка:
+          Вставьте длинную ссылку
         </label>
         <input
-          id="originalUrl"
-          v-model="originalUrl"
           type="url"
-          required
-          placeholder="https://example.com/long-url-here"
-          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors"
+          id="url"
+          v-model="originalUrl"
+          :placeholder="urlPlaceholder"
+          class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
 
-      <div>
+      <div class="mb-6">
         <label
-          for="customAlias"
+          for="alias"
           class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
         >
-          Короткий адрес (необязательно):
+          Пользовательский алиас (необязательно)
         </label>
-        <div class="flex rounded-xl overflow-hidden">
+        <div class="flex rounded-xl">
           <span
             class="inline-flex items-center px-4 py-3 rounded-l-xl border border-r-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm"
           >
-            mysite.com/
+            {{ currentHost }}/
           </span>
           <input
-            id="customAlias"
-            v-model="customAlias"
             type="text"
-            placeholder="мой-адрес"
-            class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-r-xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors"
+            id="alias"
+            v-model="alias"
+            placeholder="my-custom-link"
+            class="flex-1 px-4 py-3 rounded-r-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Оставьте пустым для автоматического создания короткого идентификатора
+        </p>
       </div>
 
       <button
-        type="submit"
-        class="w-full px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-500 dark:to-purple-500 text-white font-medium rounded-xl shadow-md hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-all transform hover:-translate-y-0.5"
+        @click="createLink"
+        :disabled="loading"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-xl"
       >
-        Сократить ссылку
+        <span v-if="loading" class="flex items-center justify-center">
+          <svg
+            class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Создание...
+        </span>
+        <span v-else>Сократить ссылку</span>
       </button>
 
-      <!-- Результат создания ссылки -->
-      <div
-        v-if="linksStore.currentLink && linksStore.currentLink.shortUrl"
-        class="p-6 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl border border-indigo-100 dark:border-indigo-800 mt-6"
-      >
-        <h3
-          class="text-lg font-semibold text-indigo-700 dark:text-indigo-300 mb-4"
-        >
-          Ваша сокращенная ссылка:
+      <div v-if="error" class="mt-4 p-3 bg-red-100 text-red-700 rounded-lg">
+        {{ error }}
+      </div>
+    </div>
+
+    <div v-else class="text-center py-4">
+      <div class="mb-6">
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          Ваша короткая ссылка готова!
         </h3>
-
-        <div class="flex items-center mb-5">
-          <a
-            :href="linksStore.currentLink.shortUrl"
-            target="_blank"
-            class="text-indigo-600 dark:text-indigo-400 hover:underline mr-3 truncate"
+        <div class="flex items-center justify-center mt-4 mb-6">
+          <div
+            class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 max-w-full overflow-auto"
           >
-            {{ linksStore.currentLink.shortUrl }}
-          </a>
-          <button
-            @click="copyLinkToClipboard"
-            class="flex-shrink-0 p-2 rounded-lg bg-indigo-100 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-700 transition-colors"
-            title="Копировать ссылку"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-              <path
-                d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"
-              />
-            </svg>
-          </button>
-        </div>
-
-        <div
-          class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3"
-        >
-          <button
-            @click="toggleQRCode"
-            class="flex-1 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/40 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-medium px-4 py-3 rounded-lg transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5 mr-2"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2V5h1v1H5zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zm2 2v-1h1v1H5zM13 3a1 1 0 00-1 1v3a1 1 0 001 1h3a1 1 0 001-1V4a1 1 0 00-1-1h-3zm1 2v1h1V5h-1zM13 12a1 1 0 00-1 1v3a1 1 0 001 1h3a1 1 0 001-1v-3a1 1 0 00-1-1h-3zm1 2v1h1v-1h-1z"
-                clip-rule="evenodd"
-              />
-            </svg>
-            {{ showQRCode ? 'Скрыть QR-код' : 'Показать QR-код' }}
-          </button>
-
-          <router-link
-            v-if="linksStore.currentLink.id"
-            :to="`/statistics/${linksStore.currentLink.id}`"
-            class="flex-1 flex items-center justify-center bg-purple-100 dark:bg-purple-900/40 hover:bg-purple-200 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-medium px-4 py-3 rounded-lg transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5 mr-2"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"
-              />
-            </svg>
-            Статистика
-          </router-link>
-        </div>
-
-        <div
-          v-if="showQRCode"
-          class="mt-6 flex justify-center p-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
-        >
-          <img
-            v-if="linksStore.currentLink.id"
-            :src="`/api/qr/${linksStore.currentLink.id}`"
-            alt="QR-код для вашей ссылки"
-            class="w-48 h-48 object-contain"
-          />
-          <div v-else class="text-gray-500 dark:text-gray-400">
-            QR-код недоступен
+            <code class="text-blue-600 dark:text-blue-400 text-lg break-all">{{
+              shortUrl
+            }}</code>
           </div>
+          <button
+            @click="copyToClipboard"
+            class="ml-3 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            :class="{ 'bg-green-600 hover:bg-green-700': copied }"
+          >
+            <svg
+              v-if="!copied"
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+              ></path>
+            </svg>
+            <svg
+              v-else
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              ></path>
+            </svg>
+          </button>
         </div>
       </div>
-    </form>
+
+      <div class="flex flex-wrap justify-center gap-3">
+        <button
+          @click="success = false"
+          class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium py-2 px-4 rounded-lg"
+        >
+          Создать еще
+        </button>
+
+        <button
+          @click="goToMyLinks"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg"
+        >
+          Мои ссылки
+        </button>
+      </div>
+    </div>
   </div>
 </template>

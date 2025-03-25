@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import LinkCreator from '@/components/links/LinkCreator.vue'
+import { computed } from 'vue'
+
+// Добавляем вычисляемое свойство для получения текущего хоста
+const currentHost = computed(() => {
+  return window.location.host
+})
 </script>
 
 <template>
