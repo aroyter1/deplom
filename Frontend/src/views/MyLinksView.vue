@@ -29,17 +29,22 @@ const fetchLinks = async () => {
     console.log('Запрашиваем ссылки пользователя...')
     console.log('Токен авторизации:', authStore.token)
 
-    const response = await axios.get('/api/links/user', {
+    const config = {
       headers: {
         Authorization: `Bearer ${authStore.token}`,
       },
-    })
+    }
+
+    console.log('Отправляем запрос с конфигурацией:', config)
+    const response = await axios.get('/api/links/user', config)
 
     console.log('Получен ответ:', response.data)
     links.value = response.data
   } catch (err: any) {
     console.error('Ошибка при получении ссылок:', err)
     if (err.response) {
+      console.error('Статус ошибки:', err.response.status)
+      console.error('Данные ошибки:', err.response.data)
       error.value = err.response.data.message || 'Не удалось загрузить ссылки'
     } else {
       error.value = 'Ошибка соединения с сервером'

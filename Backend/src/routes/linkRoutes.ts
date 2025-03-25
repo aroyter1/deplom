@@ -4,13 +4,17 @@ import { auth } from '../middleware/authMiddleware'
 
 const router = Router()
 
-// Открытые маршруты
-router.get('/:shortId', linkController.redirectToOriginal)
+// Проверим, какие функции доступны в контроллере
+// Примечание: Имена должны точно соответствовать экспортируемым функциям
 
 // Защищенные маршруты (требуют авторизации)
-router.post('/', auth, linkController.createLink)
 router.get('/user', auth, linkController.getUserLinks)
-router.get('/stats/:id', auth, linkController.getStats)
+router.get('/statistics/:id', auth, linkController.getLinkStatistics)
+router.get('/details/:id', auth, linkController.getLinkDetails)
+router.post('/', auth, linkController.createLink)
 router.delete('/:id', auth, linkController.deleteLink)
+
+// Открытые маршруты - динамический маршрут в конце
+router.get('/:shortIdOrAlias', linkController.redirectLink)
 
 export default router

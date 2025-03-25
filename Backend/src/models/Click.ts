@@ -9,6 +9,8 @@ export interface IClick extends Document {
   browser?: string
   os?: string
   device?: string
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 const ClickSchema = new Schema(
@@ -29,11 +31,11 @@ const ClickSchema = new Schema(
     os: String,
     device: String,
   },
-  { timestamps: false }
+  { timestamps: true }
 )
 
 // Создаем индекс для более быстрого поиска
 ClickSchema.index({ linkId: 1 })
 ClickSchema.index({ timestamp: 1 })
 
-export default mongoose.model<IClick>('Click', ClickSchema)
+export default mongoose.model<IClick & Document>('Click', ClickSchema)

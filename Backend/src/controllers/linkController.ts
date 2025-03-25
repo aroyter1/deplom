@@ -88,18 +88,21 @@ export const createLink = async (req: Request, res: Response) => {
 // Получение всех ссылок пользователя
 export const getUserLinks = async (req: Request, res: Response) => {
   try {
+    console.log('Получен запрос на ссылки пользователя')
+    console.log('User ID в запросе:', req.userId)
+
     // Проверяем авторизацию пользователя
     if (!req.userId) {
+      console.log('Ошибка авторизации: отсутствует userId')
       return res.status(401).json({ message: 'Не авторизован' })
     }
 
-    // Логируем запрос для отладки
-    console.log('Запрос ссылок для пользователя:', req.userId)
-
     // Получаем ссылки из БД
+    console.log('Ищем ссылки для пользователя:', req.userId)
     const links = await Link.find({ userId: req.userId }).sort({
       createdAt: -1,
     })
+    console.log('Найдено ссылок:', links.length)
 
     // Формируем полные URL для каждой ссылки
     const baseUrl = process.env.BASE_URL || 'http://localhost:4512'
@@ -125,7 +128,7 @@ export const getUserLinks = async (req: Request, res: Response) => {
   }
 }
 
-// Получение детальной информации о ссылке
+// Получение деталей ссылки
 export const getLinkDetails = async (req: Request, res: Response) => {
   try {
     const { id } = req.params
@@ -140,13 +143,13 @@ export const getLinkDetails = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Ссылка не найдена' })
     }
 
-    // Проверяем права доступа для приватных ссылок
-    if (link.userId && req.userId && link.userId.toString() !== req.userId) {
+    // Проверяем права на доступ к ссылке
+    if (link.userId && link.userId.toString() !== req.userId) {
       return res.status(403).json({ message: 'Нет доступа к этой ссылке' })
     }
 
-    // Формируем полный URL
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
+    // Формируем полный URL короткой ссылки
+    const baseUrl = process.env.BASE_URL || 'http://localhost:4512'
     const shortUrl = `${baseUrl}/${link.alias || link.shortId}`
 
     res.status(200).json({
@@ -160,10 +163,10 @@ export const getLinkDetails = async (req: Request, res: Response) => {
       updatedAt: link.updatedAt,
     })
   } catch (error) {
-    console.error('Ошибка получения данных ссылки:', error)
+    console.error('Ошибка получения деталей ссылки:', error)
     res
       .status(500)
-      .json({ message: 'Ошибка сервера при получении данных ссылки' })
+      .json({ message: 'Ошибка сервера при получении деталей ссылки' })
   }
 }
 
@@ -182,82 +185,59 @@ export const getLinkStatistics = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Ссылка не найдена' })
     }
 
-    // Проверяем права доступа для приватных ссылок
-    if (link.userId && req.userId && link.userId.toString() !== req.userId) {
+    // Проверяем права на доступ к статистике
+    if (link.userId && link.userId.toString() !== req.userId) {
       return res.status(403).json({ message: 'Нет доступа к этой ссылке' })
     }
 
-    // Получаем все клики по ссылке
-    const clicks = await Click.find({ linkId: id }).sort({ timestamp: -1 })
+    const clicks = await Click.find({ linkId: id })
 
-    // Анализируем статистику
-    const uniqueIPs = new Set(clicks.map((click) => click.ip)).size
+    // Агрегация по браузерам
+    const browserStats = clicks.reduce((acc, click) => {
+      const browser = click.browser || 'Unknown'
+      acc[browser] = (acc[browser] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
 
-    // Группируем по источникам перехода
-    const referrers: Record<string, number> = {}
-    const browsers: Record<string, number> = {}
-    const devices: Record<string, number> = {}
-    const operatingSystems: Record<string, number> = {}
+    // Агрегация по OS
+    const osStats = clicks.reduce((acc, click) => {
+      const os = click.os || 'Unknown'
+      acc[os] = (acc[os] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
 
-    clicks.forEach((click) => {
-      // Обрабатываем референсы
-      const referrer = click.referrer || 'Прямой переход'
-      referrers[referrer] = (referrers[referrer] || 0) + 1
+    // Агрегация по устройствам
+    const deviceStats = clicks.reduce((acc, click) => {
+      const device = click.device || 'desktop'
+      acc[device] = (acc[device] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
 
-      // Обрабатываем браузеры
-      if (click.browser) {
-        browsers[click.browser] = (browsers[click.browser] || 0) + 1
-      }
-
-      // Обрабатываем устройства
-      if (click.device) {
-        devices[click.device] = (devices[click.device] || 0) + 1
-      }
-
-      // Обрабатываем ОС
-      if (click.os) {
-        operatingSystems[click.os] = (operatingSystems[click.os] || 0) + 1
-      }
-    })
-
-    // Преобразуем объекты в массивы для фронтенда
-    const referrersArray = Object.entries(referrers).map(([source, count]) => ({
-      source,
-      count,
-    }))
-    const browsersArray = Object.entries(browsers).map(([name, count]) => ({
+    // Преобразование в формат для фронтенда
+    const browsers = Object.entries(browserStats).map(([name, count]) => ({
       name,
       count,
     }))
-    const devicesArray = Object.entries(devices).map(([type, count]) => ({
+    const os = Object.entries(osStats).map(([name, count]) => ({ name, count }))
+    const devices = Object.entries(deviceStats).map(([type, count]) => ({
       type,
       count,
     }))
-    const osArray = Object.entries(operatingSystems).map(([name, count]) => ({
-      name,
-      count,
-    }))
-
-    // Форматируем клики для более удобного вывода
-    const formattedClicks = clicks.map((click) => ({
-      id: click._id,
-      linkId: click.linkId,
-      timestamp: click.timestamp,
-      ip: click.ip,
-      referrer: click.referrer || 'Прямой переход',
-      browser: click.browser || 'Неизвестно',
-      device: click.device || 'Неизвестно',
-      os: click.os || 'Неизвестно',
-    }))
 
     res.status(200).json({
-      totalClicks: clicks.length,
-      uniqueVisitors: uniqueIPs,
-      referrers: referrersArray,
-      browsers: browsersArray,
-      devices: devicesArray,
-      operatingSystems: osArray,
-      clicks: formattedClicks,
+      linkId: id,
+      totalClicks: link.clicks,
+      browsers,
+      os,
+      devices,
+      clickDetails: clicks.map((click) => ({
+        id: click._id,
+        date: click.timestamp || new Date(),
+        browser: click.browser,
+        os: click.os,
+        device: click.device,
+        referer: click.referrer || '',
+      })),
     })
   } catch (error) {
     console.error('Ошибка получения статистики:', error)
@@ -297,5 +277,46 @@ export const deleteLink = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Ошибка удаления ссылки:', error)
     res.status(500).json({ message: 'Ошибка сервера при удалении ссылки' })
+  }
+}
+
+// Редирект по короткой ссылке
+export const redirectLink = async (req: Request, res: Response) => {
+  try {
+    const { shortIdOrAlias } = req.params
+
+    const link = await Link.findOne({
+      $or: [{ shortId: shortIdOrAlias }, { alias: shortIdOrAlias }],
+    })
+
+    if (!link) {
+      return res.status(404).json({ message: 'Ссылка не найдена' })
+    }
+
+    // Увеличиваем счетчик кликов
+    link.clicks += 1
+    await link.save()
+
+    // Сохраняем информацию о клике
+    const userAgent = req.headers['user-agent'] || ''
+    const parser = new UAParser(userAgent)
+
+    const clickData = new Click({
+      linkId: link._id,
+      userAgent,
+      browser: parser.getBrowser().name || 'Unknown',
+      os: parser.getOS().name || 'Unknown',
+      device: parser.getDevice().type || 'desktop',
+      referrer: req.headers.referer || '',
+      ip: req.ip,
+    })
+
+    await clickData.save()
+
+    // Редирект на оригинальный URL
+    res.redirect(link.originalUrl)
+  } catch (error) {
+    console.error('Ошибка при редиректе:', error)
+    res.status(500).json({ message: 'Ошибка сервера при редиректе' })
   }
 }
