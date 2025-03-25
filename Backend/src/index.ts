@@ -12,6 +12,7 @@ import authRoutes from './routes/authRoutes'
 import linkRoutes from './routes/linkRoutes'
 import redirectRoutes from './routes/redirectRoutes'
 import qrRoutes from './routes/qrRoutes'
+import userRoutes from './routes/userRoutes'
 
 // Загружаем переменные окружения
 dotenv.config()
@@ -41,6 +42,7 @@ app.use('/api', apiLimiter)
 app.use('/api/auth', authRoutes)
 app.use('/api/links', linkRoutes)
 app.use('/api/qr', qrRoutes)
+app.use('/api/user', userRoutes)
 app.use('/', redirectRoutes) // Маршрут для перенаправления коротких ссылок
 
 // Обработка 404

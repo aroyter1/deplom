@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 
 interface UserProfile {
   id: string
-  email: string
+  username: string
   name: string
   createdAt: string
   updatedAt: string
@@ -148,9 +148,9 @@ onMounted(() => {
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Email</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Логин</p>
             <p class="text-lg text-gray-900 dark:text-white">
-              {{ profile.email }}
+              {{ profile.username }}
             </p>
           </div>
 

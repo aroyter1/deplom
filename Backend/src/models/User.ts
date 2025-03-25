@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt'
 
 export interface IUser extends Document {
   username: string
+  name?: string
   password: string
   createdAt: Date
   updatedAt: Date
@@ -18,6 +19,10 @@ const UserSchema = new Schema(
       trim: true,
       minlength: 3,
       maxlength: 30,
+    },
+    name: {
+      type: String,
+      trim: true,
     },
     password: {
       type: String,
