@@ -1,6 +1,29 @@
 version: '3.8'
 
 services:
+  # DNS сервер
+  dnsmasq:
+    build:
+      context: ..
+      dockerfile: CI-CD/docker/dnsmasq/Dockerfile
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - '53:53/udp'
+      - '53:53/tcp'
+    networks:
+      - web
+      - db
+      - monitoring
+    volumes:
+      - dnsmasq-logs:/var/log/dnsmasq
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+
   # NGINX балансировщик
   nginx:
     build:
@@ -11,6 +34,7 @@ services:
       - '80:80'
       - '443:443'
     depends_on:
+      - dnsmasq
       - frontend
       - backend
     networks:
@@ -36,6 +60,7 @@ services:
     networks:
       - web
     depends_on:
+      - dnsmasq
       - backend
     deploy:
       replicas: 2
@@ -58,6 +83,7 @@ services:
       - web
       - db
     depends_on:
+      - dnsmasq
       - mongodb
     deploy:
       replicas: 2
@@ -216,3 +242,4 @@ volumes:
   mongodb-backup:
   grafana-data:
   prometheus-data:
+  dnsmasq-logs:

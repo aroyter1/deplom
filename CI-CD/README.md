@@ -10,6 +10,47 @@
 4. **Мониторинг с Grafana и Prometheus** - отслеживание состояния системы
 5. **Автоматическое резервное копирование MongoDB** - защита данных
 
+## Настройка DNS (dnsmasq)
+
+Для удобства локальной разработки и тестирования, в инфраструктуру включен DNS-сервер dnsmasq. Он позволяет использовать имена хостов вместо IP-адресов для обращения к сервисам.
+
+### Настройка клиентов для использования dnsmasq
+
+#### Linux/MacOS
+
+Добавьте IP-адрес хоста, где запущен dnsmasq, в начало файла `/etc/resolv.conf`:
+
+```
+nameserver <IP-адрес-хоста-с-dnsmasq>
+```
+
+Или используйте настройки DNS в NetworkManager, systemd-resolved и т.д.
+
+#### Windows
+
+1. Откройте Панель управления > Сеть и Интернет > Центр управления сетями
+2. Выберите активное подключение > Свойства
+3. Выберите "IP версии 4 (TCP/IPv4)" > Свойства
+4. Укажите IP-адрес dnsmasq как предпочитаемый DNS-сервер
+
+### Доступные хосты
+
+После настройки DNS вы можете использовать следующие имена хостов:
+
+- `frontend.korotkossylka.local` - Frontend-сервис
+- `backend.korotkossylka.local` - Backend API
+- `mongodb.korotkossylka.local` - База данных MongoDB
+- `grafana.korotkossylka.local` - Мониторинг Grafana
+- `prometheus.korotkossylka.local` - Prometheus
+
+### Добавление новых записей DNS
+
+Для добавления новых записей DNS отредактируйте файл `CI-CD/docker/dnsmasq/hosts` и перезапустите контейнер dnsmasq:
+
+```bash
+docker-compose restart dnsmasq
+```
+
 ## Быстрый старт
 
 ### Локальное развертывание
