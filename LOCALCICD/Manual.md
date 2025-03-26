@@ -190,3 +190,140 @@ ssh deploy@192.168.1.12 'docker exec database mongodump --out /backup'
 ssh deploy@192.168.1.12 'docker cp database:/backup /tmp/backup'
 scp -r deploy@192.168.1.12:/tmp/backup deploy@192.168.1.13:/backup/$(date +%Y%m%d)
 ```
+
+## 8. Настройка Grafana и мониторинга
+
+### Установка Grafana на сервере мониторинга:
+```bash
+# Подключение к серверу мониторинга
+ssh deploy@192.168.1.13
+
+# Создание директорий для данных
+sudo mkdir -p /opt/grafana/{data,provisioning}
+
+# Создание docker-compose.yml для Grafana
+cat > /opt/grafana/docker-compose.yml << EOF
+version: '3.8'
+
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=your_secure_password
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://monitor.deplom.local/grafana
+    volumes:
+      - /opt/grafana/data:/var/lib/grafana
+      - /opt/grafana/provisioning:/etc/grafana/provisioning
+    restart: always
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - /opt/grafana/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: always
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    restart: always
+EOF
+
+# Создание конфигурации Prometheus
+cat > /opt/grafana/prometheus.yml << EOF
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'frontend'
+    static_configs:
+      - targets: ['192.168.1.10:9100']
+
+  - job_name: 'backend'
+    static_configs:
+      - targets: ['192.168.1.11:9100']
+
+  - job_name: 'database'
+    static_configs:
+      - targets: ['192.168.1.12:9100']
+EOF
+
+# Запуск Grafana и Prometheus
+cd /opt/grafana
+docker-compose up -d
+```
+
+### Настройка Node Exporter на всех серверах:
+```bash
+# Выполнить на каждом сервере (frontend, backend, database)
+docker run -d \
+  --name node-exporter \
+  --restart always \
+  --net="host" \
+  --pid="host" \
+  -v "/:/host:ro,rslave" \
+  prom/node-exporter:latest \
+  --path.rootfs=/host
+```
+
+### Базовая настройка Grafana:
+1. Откройте http://monitor.deplom.local:3000
+2. Войдите с credentials:
+   - Username: admin
+   - Password: your_secure_password (указанный в docker-compose.yml)
+3. Добавьте Prometheus как источник данных:
+   - URL: http://prometheus:9090
+4. Импортируйте базовые дашборды:
+   - Node Exporter Full (ID: 1860)
+   - MongoDB Overview (ID: 2583)
+
+### Настройка алертов:
+```bash
+# Создание конфигурации алертов
+cat > /opt/grafana/provisioning/alerting/alerts.yml << EOF
+groups:
+  - name: Basic Alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High CPU usage on {{ $labels.instance }}
+          
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High memory usage on {{ $labels.instance }}
+          
+      - alert: LowDiskSpace
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Low disk space on {{ $labels.instance }}
+EOF
+```
