@@ -3,7 +3,7 @@ version: '3.8'
 services:
   frontend:
     build:
-      context: ../Frontend
+      context: ./Frontend
       dockerfile: Dockerfile
     environment:
       - VITE_API_URL=http://backend:4512
@@ -11,10 +11,12 @@ services:
       - "5200:80"
     networks:
       - app_network
+    depends_on:
+      - backend
 
   backend:
     build:
-      context: ../Backend
+      context: ./Backend
       dockerfile: Dockerfile
     environment:
       - MONGODB_URI=mongodb://database:27017/url-shortener
@@ -25,40 +27,43 @@ services:
       - NODE_ENV=production
     ports:
       - "4512:4512"
-    depends_on:
-      - database
     networks:
       - app_network
+    depends_on:
+      - database
 
   database:
     image: mongo:latest
     ports:
       - "27017:27017"
     volumes:
-      - db_data:/data/db
+      - ./data:/data/db
     networks:
       - app_network
 
   backup_backend:
     build:
-      context: ../Backend
+      context: ./Backend
       dockerfile: Dockerfile
     environment:
       - MONGODB_URI=mongodb://backup_db:27017/url-shortener
       - JWT_SECRET=${JWT_SECRET}
       - PORT=4512
       - BASE_URL=http://backup_backend:4512
-      - CLIENT_URL=http://frontend:5200
       - NODE_ENV=production
-    depends_on:
-      - backup_db
+    ports:
+      - "4513:4512"
     networks:
       - app_network
+    depends_on:
+      - backup_db
 
   backup_db:
     image: mongo:latest
+    ports:
+      - "27018:27017"
     volumes:
-      - backup_db_data:/data/db
+      - ./backup:/data/db
     networks:
       - app_network
 
@@ -67,7 +72,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - grafana_data:/var/lib/grafana
+      - ./grafana:/var/lib/grafana
     networks:
       - app_network
 
@@ -76,12 +81,12 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - app_network
     depends_on:
       - frontend
       - backend
-    networks:
-      - app_network
 
 networks:
   app_network:

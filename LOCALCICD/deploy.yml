@@ -11,10 +11,33 @@
         state: present
         update_cache: yes
 
-    - name: Copy docker-compose files
+    - name: Create application directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - /opt/app
+        - /opt/app/Frontend
+        - /opt/app/Backend
+        - /opt/app/nginx
+
+    - name: Copy project files
       copy:
-        src: docker-compose.yml
-        dest: /opt/app/
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      with_items:
+        - { src: '../Frontend/', dest: '/opt/app/Frontend/' }
+        - { src: '../Backend/', dest: '/opt/app/Backend/' }
+        - { src: 'docker-compose.yml', dest: '/opt/app/' }
+        - { src: 'nginx.conf', dest: '/opt/app/nginx/' }
+
+    - name: Create .env file
+      copy:
+        content: |
+          JWT_SECRET=your_secure_jwt_secret_key
+        dest: /opt/app/.env
+        mode: '0600'
 
     - name: Deploy Frontend containers
       docker_compose:
@@ -33,10 +56,33 @@
         state: present
         update_cache: yes
 
-    - name: Copy docker-compose files
+    - name: Create application directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - /opt/app
+        - /opt/app/Frontend
+        - /opt/app/Backend
+        - /opt/app/nginx
+
+    - name: Copy project files
       copy:
-        src: docker-compose.yml
-        dest: /opt/app/
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      with_items:
+        - { src: '../Frontend/', dest: '/opt/app/Frontend/' }
+        - { src: '../Backend/', dest: '/opt/app/Backend/' }
+        - { src: 'docker-compose.yml', dest: '/opt/app/' }
+        - { src: 'nginx.conf', dest: '/opt/app/nginx/' }
+
+    - name: Create .env file
+      copy:
+        content: |
+          JWT_SECRET=your_secure_jwt_secret_key
+        dest: /opt/app/.env
+        mode: '0600'
 
     - name: Deploy Backend containers
       docker_compose:
@@ -55,10 +101,27 @@
         state: present
         update_cache: yes
 
+    - name: Create application directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - /opt/app
+        - /opt/app/data
+        - /opt/app/backup
+
     - name: Copy docker-compose files
       copy:
         src: docker-compose.yml
         dest: /opt/app/
+
+    - name: Create .env file
+      copy:
+        content: |
+          JWT_SECRET=your_secure_jwt_secret_key
+        dest: /opt/app/.env
+        mode: '0600'
 
     - name: Deploy Database containers
       docker_compose:
@@ -77,10 +140,27 @@
         state: present
         update_cache: yes
 
+    - name: Create application directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - /opt/app
+        - /opt/app/grafana
+        - /opt/app/backup
+
     - name: Copy docker-compose files
       copy:
         src: docker-compose.yml
         dest: /opt/app/
+
+    - name: Create .env file
+      copy:
+        content: |
+          JWT_SECRET=your_secure_jwt_secret_key
+        dest: /opt/app/.env
+        mode: '0600'
 
     - name: Deploy Monitoring containers
       docker_compose:
