@@ -5,10 +5,10 @@
 ### Таблица сетевых настроек
 | Сервер | IP адрес | Маска подсети | Шлюз | DNS | Hostname |
 |--------|----------|---------------|-------|-----|----------|
-| Frontend | 192.168.1.10 | 255.255.255.0 | 192.168.1.1 | 192.168.1.1 | frontend01 |
-| Backend | 192.168.1.11 | 255.255.255.0 | 192.168.1.1 | 192.168.1.1 | backend01 |
-| Database | 192.168.1.12 | 255.255.255.0 | 192.168.1.1 | 192.168.1.1 | db01 |
-| Monitoring | 192.168.1.13 | 255.255.255.0 | 192.168.1.1 | 192.168.1.1 | monitor01 |
+| Frontend | 192.168.200.10 | 255.255.255.0 | 192.168.200.1 | 192.168.200.1 | frontend01 |
+| Backend | 192.168.200.11 | 255.255.255.0 | 192.168.200.1 | 192.168.200.1 | backend01 |
+| Database | 192.168.200.12 | 255.255.255.0 | 192.168.200.1 | 192.168.200.1 | db01 |
+| Monitoring | 192.168.200.13 | 255.255.255.0 | 192.168.200.1 | 192.168.200.1 | monitor01 |
 
 ### Настройка сетевых интерфейсов (Ubuntu)
 На каждом сервере создать файл `/etc/netplan/01-netcfg.yaml`:
@@ -21,9 +21,9 @@ network:
     eth0:
       addresses:
         - IP_АДРЕС/24  # Заменить на IP из таблицы
-      gateway4: 192.168.1.1
+      gateway4: 192.168.200.1
       nameservers:
-        addresses: [192.168.1.1]
+        addresses: [192.168.200.1]
 ```
 
 Применить настройки:
@@ -57,21 +57,21 @@ local=/deplom.local/
 domain=deplom.local
 
 # DNS записи
-address=/frontend.deplom.local/192.168.1.10
-address=/backend.deplom.local/192.168.1.11
-address=/db.deplom.local/192.168.1.12
-address=/monitor.deplom.local/192.168.1.13
+address=/frontend.deplom.local/192.168.200.10
+address=/backend.deplom.local/192.168.200.11
+address=/db.deplom.local/192.168.200.12
+address=/monitor.deplom.local/192.168.200.13
 
 # DHCP настройки
-dhcp-range=192.168.1.50,192.168.1.150,12h
-dhcp-option=option:router,192.168.1.1
-dhcp-option=option:dns-server,192.168.1.1
+dhcp-range=192.168.200.50,192.168.200.150,12h
+dhcp-option=option:router,192.168.200.1
+dhcp-option=option:dns-server,192.168.200.1
 
 # Статические привязки
-dhcp-host=frontend01,192.168.1.10,infinite
-dhcp-host=backend01,192.168.1.11,infinite
-dhcp-host=db01,192.168.1.12,infinite
-dhcp-host=monitor01,192.168.1.13,infinite
+dhcp-host=frontend01,192.168.200.10,infinite
+dhcp-host=backend01,192.168.200.11,infinite
+dhcp-host=db01,192.168.200.12,infinite
+dhcp-host=monitor01,192.168.200.13,infinite
 ```
 
 Перезапустить dnsmasq:
@@ -87,7 +87,7 @@ sudo systemctl restart dnsmasq
 ssh-keygen -t rsa -b 4096 -C "deploy@deplom"
 
 # Копирование ключей на серверы
-for ip in 192.168.1.{10,11,12,13}; do
+for ip in 192.168.200.{10,11,12,13}; do
     ssh-copy-id deploy@$ip
 done
 ```
@@ -170,13 +170,13 @@ ansible-playbook -i inventory.yml deploy.yml
 ### Мониторинг логов:
 ```bash
 # Frontend логи
-ssh deploy@192.168.1.10 'docker logs frontend'
+ssh deploy@192.168.200.10 'docker logs frontend'
 
 # Backend логи
-ssh deploy@192.168.1.11 'docker logs backend'
+ssh deploy@192.168.200.11 'docker logs backend'
 
 # База данных
-ssh deploy@192.168.1.12 'docker logs database'
+ssh deploy@192.168.200.12 'docker logs database'
 ```
 
 ## 8. Резервное копирование
@@ -184,11 +184,11 @@ ssh deploy@192.168.1.12 'docker logs database'
 ### База данных:
 ```bash
 # Создание бэкапа
-ssh deploy@192.168.1.12 'docker exec database mongodump --out /backup'
+ssh deploy@192.168.200.12 'docker exec database mongodump --out /backup'
 
 # Копирование на сервер мониторинга
-ssh deploy@192.168.1.12 'docker cp database:/backup /tmp/backup'
-scp -r deploy@192.168.1.12:/tmp/backup deploy@192.168.1.13:/backup/$(date +%Y%m%d)
+ssh deploy@192.168.200.12 'docker cp database:/backup /tmp/backup'
+scp -r deploy@192.168.200.12:/tmp/backup deploy@192.168.200.13:/backup/$(date +%Y%m%d)
 ```
 
 ## 8. Настройка Grafana и мониторинга
@@ -196,7 +196,7 @@ scp -r deploy@192.168.1.12:/tmp/backup deploy@192.168.1.13:/backup/$(date +%Y%m%
 ### Установка Grafana на сервере мониторинга:
 ```bash
 # Подключение к серверу мониторинга
-ssh deploy@192.168.1.13
+ssh deploy@192.168.200.13
 
 # Создание директорий для данных
 sudo mkdir -p /opt/grafana/{data,provisioning}
@@ -255,15 +255,15 @@ scrape_configs:
 
   - job_name: 'frontend'
     static_configs:
-      - targets: ['192.168.1.10:9100']
+      - targets: ['192.168.200.10:9100']
 
   - job_name: 'backend'
     static_configs:
-      - targets: ['192.168.1.11:9100']
+      - targets: ['192.168.200.11:9100']
 
   - job_name: 'database'
     static_configs:
-      - targets: ['192.168.1.12:9100']
+      - targets: ['192.168.200.12:9100']
 EOF
 
 # Запуск Grafana и Prometheus
