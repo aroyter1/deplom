@@ -1,0 +1,28 @@
+all:
+  children:
+    production:
+      children:
+        frontend:
+          hosts:
+            frontend01:
+              ansible_host: 192.168.1.10
+              ansible_user: deploy
+              ansible_ssh_private_key_file: ~/.ssh/id_rsa
+        backend:
+          hosts:
+            backend01:
+              ansible_host: 192.168.1.11
+              ansible_user: deploy
+              ansible_ssh_private_key_file: ~/.ssh/id_rsa
+        database:
+          hosts:
+            db01:
+              ansible_host: 192.168.1.12
+              ansible_user: deploy
+              ansible_ssh_private_key_file: ~/.ssh/id_rsa
+        monitoring:
+          hosts:
+            monitor01:
+              ansible_host: 192.168.1.13
+              ansible_user: deploy
+              ansible_ssh_private_key_file: ~/.ssh/id_rsa 

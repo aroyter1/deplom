@@ -1,0 +1,88 @@
+---
+- name: Deploy Frontend
+  hosts: frontend
+  become: yes
+  tasks:
+    - name: Install Docker
+      apt:
+        name: 
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: yes
+
+    - name: Copy docker-compose files
+      copy:
+        src: docker-compose.yml
+        dest: /opt/app/
+
+    - name: Deploy Frontend containers
+      docker_compose:
+        project_src: /opt/app
+        state: present
+
+- name: Deploy Backend and Database
+  hosts: backend
+  become: yes
+  tasks:
+    - name: Install Docker
+      apt:
+        name: 
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: yes
+
+    - name: Copy docker-compose files
+      copy:
+        src: docker-compose.yml
+        dest: /opt/app/
+
+    - name: Deploy Backend containers
+      docker_compose:
+        project_src: /opt/app
+        state: present
+
+- name: Deploy Database
+  hosts: database
+  become: yes
+  tasks:
+    - name: Install Docker
+      apt:
+        name: 
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: yes
+
+    - name: Copy docker-compose files
+      copy:
+        src: docker-compose.yml
+        dest: /opt/app/
+
+    - name: Deploy Database containers
+      docker_compose:
+        project_src: /opt/app
+        state: present
+
+- name: Deploy Monitoring and Backup
+  hosts: monitoring
+  become: yes
+  tasks:
+    - name: Install Docker
+      apt:
+        name: 
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: yes
+
+    - name: Copy docker-compose files
+      copy:
+        src: docker-compose.yml
+        dest: /opt/app/
+
+    - name: Deploy Monitoring containers
+      docker_compose:
+        project_src: /opt/app
+        state: present 
