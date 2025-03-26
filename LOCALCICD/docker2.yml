@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ../Frontend
+      dockerfile: Dockerfile
+    environment:
+      - VITE_API_URL=http://backend:4512
+    ports:
+      - "5200:80"
+    networks:
+      - app_network
+
+  backend:
+    build:
+      context: ../Backend
+      dockerfile: Dockerfile
+    environment:
+      - MONGODB_URI=mongodb://database:27017/url-shortener
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=4512
+      - BASE_URL=http://backend:4512
+      - CLIENT_URL=http://frontend:5200
+      - NODE_ENV=production
+    ports:
+      - "4512:4512"
+    depends_on:
+      - database
+    networks:
+      - app_network
+
+  database:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - db_data:/data/db
+    networks:
+      - app_network
+
+  backup_backend:
+    build:
+      context: ../Backend
+      dockerfile: Dockerfile
+    environment:
+      - MONGODB_URI=mongodb://backup_db:27017/url-shortener
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=4512
+      - BASE_URL=http://backup_backend:4512
+      - CLIENT_URL=http://frontend:5200
+      - NODE_ENV=production
+    depends_on:
+      - backup_db
+    networks:
+      - app_network
+
+  backup_db:
+    image: mongo:latest
+    volumes:
+      - backup_db_data:/data/db
+    networks:
+      - app_network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - app_network
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  db_data:
+  backup_db_data:
+  grafana_data:
