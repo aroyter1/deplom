@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAppConfig } from '@/composables/useAppConfig'
 
 defineProps({
   isDarkMode: {
@@ -15,6 +16,7 @@ const emit = defineEmits(['toggle-theme'])
 const authStore = useAuthStore()
 const router = useRouter()
 const isMobileMenuOpen = ref(false)
+const { appName } = useAppConfig()
 
 const isAuthenticated = computed(() => authStore.isAuthenticated())
 const username = computed(() => authStore.user?.username || '')
@@ -47,7 +49,7 @@ const closeMobileMenu = () => {
             @click="closeMobileMenu"
           >
             <div
-              class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 flex items-center justify-center shadow-md"
+              class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -65,7 +67,7 @@ const closeMobileMenu = () => {
             <span
               class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400"
             >
-              КороткоСсылка
+              {{ appName }}
             </span>
           </RouterLink>
 

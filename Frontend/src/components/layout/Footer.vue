@@ -1,3 +1,10 @@
+<script setup lang="ts">
+import { useAppConfig } from '@/composables/useAppConfig'
+
+const { appName } = useAppConfig()
+const currentYear = new Date().getFullYear()
+</script>
+
 <template>
   <footer
     class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-8 transition-colors duration-200"
@@ -25,7 +32,7 @@
             <span
               class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400"
             >
-              КороткоСсылка
+              {{ appName }}
             </span>
           </div>
           <p class="text-gray-600 dark:text-gray-400 mb-4">
@@ -200,8 +207,7 @@
 
       <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
         <p class="text-center text-sm text-gray-500 dark:text-gray-400">
-          &copy; {{ new Date().getFullYear() }} КороткоСсылка. Все права
-          защищены.
+          &copy; {{ currentYear }} {{ appName }}. Все права защищены.
         </p>
       </div>
     </div>

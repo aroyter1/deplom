@@ -1,11 +1,11 @@
 import express from 'express'
-import dotenv from 'dotenv'
 import mongoose from 'mongoose'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
 import rateLimit from 'express-rate-limit'
 import path from 'path'
+import config from './config'
 
 // Импортируем маршруты
 import authRoutes from './routes/authRoutes'
@@ -14,23 +14,31 @@ import redirectRoutes from './routes/redirectRoutes'
 import qrRoutes from './routes/qrRoutes'
 import userRoutes from './routes/userRoutes'
 
-// Загружаем переменные окружения
-dotenv.config()
+// Настройка логгера
+import './utils/logger'
+import logger from './utils/logger'
 
 // Инициализируем приложение Express
 const app = express()
-const PORT = process.env.PORT || 3000
+const PORT = config.SERVER.PORT
+
+// Настройка CORS с учетом клиентского URL
+const corsOptions = {
+  origin: [config.URLS.CLIENT],
+  credentials: true,
+  optionsSuccessStatus: 200,
+}
 
 // Middlewares
 app.use(express.json())
-app.use(cors())
+app.use(cors(corsOptions))
 app.use(helmet())
-app.use(morgan('dev'))
+app.use(morgan('combined'))
 
 // Ограничение запросов
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 минут
-  max: 100, // максимум 100 запросов за 15 минут
+  windowMs: config.RATE_LIMITS.WINDOW_MS,
+  max: config.RATE_LIMITS.MAX_REQUESTS,
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -58,23 +66,49 @@ app.use(
     res: express.Response,
     next: express.NextFunction
   ) => {
-    console.error(err.stack)
+    logger.error(`Ошибка: ${err.message}`, { stack: err.stack })
     res.status(err.status || 500).json({
       message: err.message || 'Внутренняя ошибка сервера',
     })
   }
 )
 
+// Настройки подключения к MongoDB с репликацией для масштабирования
+const mongoOptions: any = {
+  ...config.DATABASE.OPTIONS,
+}
+
+// Добавляем replicaSet только если он указан и не пустой
+if (config.DATABASE.REPLICA_SET && config.DATABASE.REPLICA_SET.trim() !== '') {
+  mongoOptions.replicaSet = config.DATABASE.REPLICA_SET
+}
+
 // Подключение к базе данных и запуск сервера
 mongoose
-  .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/url-shortener')
+  .connect(config.DATABASE.URI, mongoOptions)
   .then(() => {
-    console.log('Подключение к базе данных установлено')
+    logger.info('Подключение к базе данных установлено')
     app.listen(PORT, () => {
-      console.log(`Сервер запущен на порту ${PORT}`)
+      logger.info(`Сервер запущен на порту ${PORT}`)
+      logger.info(`Режим: ${config.SERVER.NODE_ENV}`)
     })
   })
   .catch((error) => {
-    console.error('Ошибка подключения к базе данных:', error)
+    logger.error('Ошибка подключения к базе данных:', error)
     process.exit(1)
   })
+
+// Обработка сигналов завершения для корректного закрытия соединений
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM получен. Завершение работы...')
+  mongoose.connection
+    .close(false)
+    .then(() => {
+      logger.info('Соединение с MongoDB закрыто')
+      process.exit(0)
+    })
+    .catch((err) => {
+      logger.error('Ошибка при закрытии соединения с MongoDB:', err)
+      process.exit(1)
+    })
+})

@@ -4,9 +4,11 @@ import { RouterView } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import Navbar from '@/components/layout/Navbar.vue'
 import Footer from '@/components/layout/Footer.vue'
+import { useAppConfig } from '@/composables/useAppConfig'
 
 const authStore = useAuthStore()
 const isDarkMode = ref(false)
+const { appName, appDescription } = useAppConfig()
 
 // Функция для переключения темы
 const toggleTheme = () => {
@@ -24,23 +26,23 @@ const applyTheme = () => {
   }
 }
 
-// При монтировании компонента проверяем сохраненную тему
+// При монтировании компонента
 onMounted(() => {
-  // Сначала проверяем localStorage
+  // Загружаем сохраненную тему из localStorage
   const savedTheme = localStorage.getItem('darkMode')
-
-  if (savedTheme !== null) {
-    isDarkMode.value = savedTheme === 'true'
-  } else {
-    // Если в localStorage ничего нет, используем системные настройки
-    isDarkMode.value = window.matchMedia('(prefers-color-scheme: dark)').matches
-  }
-
-  // Применяем тему
+  isDarkMode.value = savedTheme === 'true'
   applyTheme()
 
   // Инициализируем состояние авторизации
   authStore.initializeAuth()
+
+  // Устанавливаем заголовок страницы
+  document.title = `${appName.value} - ${appDescription.value}`
+
+  // Для отладки
+  console.log('Переменные окружения:')
+  console.log('VITE_APP_NAME:', import.meta.env.VITE_APP_NAME)
+  console.log('VITE_APP_DESCRIPTION:', import.meta.env.VITE_APP_DESCRIPTION)
 })
 
 // Слушаем изменения системных настроек
@@ -57,6 +59,17 @@ window
 watch(isDarkMode, () => {
   applyTheme()
 })
+
+// Следим за изменениями в авторизации
+watch(
+  () => authStore.token,
+  () => {
+    // Обновляем данные при изменении токена
+    if (authStore.token) {
+      // Действия при входе в систему
+    }
+  }
+)
 </script>
 
 <template>
