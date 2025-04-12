@@ -1,0 +1,54 @@
+---
+- name: Create application directories
+  file:
+    path: '{{ item }}'
+    state: directory
+  loop:
+    - '~/shortlink-app'
+    - '~/shortlink-app/nginx/conf.d'
+    - '~/shortlink-app/nginx/ssl'
+    - '~/shortlink-app/dnsmasq'
+    - '~/shortlink-app/Backend'
+    - '~/shortlink-app/Frontend'
+
+- name: Copy application files
+  copy:
+    src: 'files/app/{{ item.src }}'
+    dest: '~/shortlink-app/{{ item.dest }}'
+  loop:
+    - { src: 'docker-compose.yml', dest: 'docker-compose.yml' }
+    - { src: 'nginx/conf.d/default.conf', dest: 'nginx/conf.d/default.conf' }
+    - { src: 'dnsmasq/dnsmasq.conf', dest: 'dnsmasq/dnsmasq.conf' }
+    - { src: 'Backend/.env', dest: 'Backend/.env' }
+    - { src: 'Frontend/.env', dest: 'Frontend/.env' }
+    - { src: 'generate-certs.sh', dest: 'generate-certs.sh' }
+
+- name: Make certificates script executable
+  file:
+    path: '~/shortlink-app/generate-certs.sh'
+    mode: '0755'
+
+- name: Generate certificates
+  command: ./generate-certs.sh
+  args:
+    chdir: '~/shortlink-app'
+    creates: '~/shortlink-app/nginx/ssl/shortlink.local.crt'
+
+- name: Clone application repository
+  git:
+    repo: https://github.com/yourusername/shortlink-app.git
+    dest: '~/shortlink-app/temp-repo'
+    version: main
+
+- name: Copy application source code
+  shell: |
+    cp -r temp-repo/Backend/* Backend/
+    cp -r temp-repo/Frontend/* Frontend/
+    rm -rf temp-repo
+  args:
+    chdir: '~/shortlink-app'
+
+- name: Start application containers
+  command: docker-compose up -d
+  args:
+    chdir: '~/shortlink-app'

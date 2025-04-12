@@ -1,0 +1,59 @@
+---
+- name: Create monitoring directories
+  file:
+    path: '{{ item }}'
+    state: directory
+  loop:
+    - '~/monitoring'
+    - '~/monitoring/prometheus'
+    - '~/monitoring/grafana/provisioning/datasources'
+    - '~/monitoring/grafana/provisioning/dashboards'
+    - '~/monitoring/loki'
+    - '~/monitoring/promtail'
+    - '~/monitoring/nginx/conf.d'
+    - '~/monitoring/nginx/ssl'
+
+- name: Copy monitoring files
+  copy:
+    src: 'files/monitoring/{{ item.src }}'
+    dest: '~/monitoring/{{ item.dest }}'
+  loop:
+    - { src: 'docker-compose.yml', dest: 'docker-compose.yml' }
+    - { src: 'prometheus/prometheus.yml', dest: 'prometheus/prometheus.yml' }
+    - { src: 'loki/loki-config.yaml', dest: 'loki/loki-config.yaml' }
+    - {
+        src: 'promtail/promtail-config.yaml',
+        dest: 'promtail/promtail-config.yaml',
+      }
+    - {
+        src: 'grafana/provisioning/datasources/datasources.yaml',
+        dest: 'grafana/provisioning/datasources/datasources.yaml',
+      }
+    - { src: 'nginx/conf.d/default.conf', dest: 'nginx/conf.d/default.conf' }
+
+- name: Copy SSL certificates from app server
+  fetch:
+    src: '~/shortlink-app/nginx/ssl/{{ item }}'
+    dest: 'files/monitoring/nginx/ssl/'
+    flat: yes
+  delegate_to: app
+  loop:
+    - 'shortlink.local.crt'
+    - 'shortlink.local.key'
+    - 'rootCA.crt'
+    - 'rootCA.key'
+
+- name: Copy SSL certificates to monitoring server
+  copy:
+    src: 'files/monitoring/nginx/ssl/{{ item }}'
+    dest: '~/monitoring/nginx/ssl/{{ item }}'
+  loop:
+    - 'shortlink.local.crt'
+    - 'shortlink.local.key'
+    - 'rootCA.crt'
+    - 'rootCA.key'
+
+- name: Start monitoring containers
+  command: docker-compose up -d
+  args:
+    chdir: '~/monitoring'
