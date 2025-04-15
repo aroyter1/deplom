@@ -29,6 +29,14 @@
     path: /opt/korotkosilka/certs/fullchain.pem
     mode: '0644'
 
+- name: Копировать исходники Frontend
+  copy:
+    src: ../../Frontend/
+    dest: /opt/korotkosilka/Frontend/
+    owner: root
+    group: root
+    mode: 0755
+
 - name: Копировать docker-compose файл
   copy:
     src: files/docker-compose.frontend_backend.yml
