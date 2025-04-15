@@ -4,6 +4,28 @@
     state: directory
     mode: 0755
 
+- name: Создать директорию для сертификатов
+  file:
+    path: /opt/korotkosilka/certs
+    state: directory
+    mode: 0755
+
+- name: Сгенерировать приватный ключ для сертификата
+  community.crypto.openssl_privatekey:
+    path: /opt/korotkosilka/certs/privkey.pem
+    size: 2048
+    type: RSA
+    mode: 0600
+
+- name: Сгенерировать самоподписанный сертификат
+  community.crypto.openssl_certificate:
+    path: /opt/korotkosilka/certs/fullchain.pem
+    privatekey_path: /opt/korotkosilka/certs/privkey.pem
+    provider: selfsigned
+    subject: '/CN=korotko.local'
+    days: 365
+    mode: 0644
+
 - name: Копировать docker-compose файл
   copy:
     src: files/docker-compose.frontend_backend.yml
@@ -13,12 +35,6 @@
   copy:
     src: files/nginx.conf
     dest: /opt/korotkosilka/nginx.conf
-
-- name: Копировать сертификаты
-  copy:
-    src: files/certs/
-    dest: /opt/korotkosilka/certs/
-    mode: 0644
 
 - name: Запустить сервисы через Docker Compose
   shell: docker-compose up -d --build
