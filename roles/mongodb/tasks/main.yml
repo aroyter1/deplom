@@ -1,0 +1,3 @@
+- name: Проверка роли mongodb
+  debug:
+    msg: 'Роль mongodb работает!'

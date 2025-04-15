@@ -1,0 +1,3 @@
+- name: Проверка роли frontend_backend
+  debug:
+    msg: 'Роль frontend_backend работает!'

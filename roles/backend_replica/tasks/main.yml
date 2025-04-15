@@ -1,0 +1,3 @@
+- name: Проверка роли backend_replica
+  debug:
+    msg: 'Роль backend_replica работает!'

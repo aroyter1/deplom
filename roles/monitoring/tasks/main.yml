@@ -1,0 +1,3 @@
+- name: Проверка роли monitoring
+  debug:
+    msg: 'Роль monitoring работает!'
