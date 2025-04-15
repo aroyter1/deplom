@@ -37,6 +37,14 @@
     group: root
     mode: 0755
 
+- name: Копировать исходники Backend
+  copy:
+    src: ../../Backend/
+    dest: /opt/korotkosilka/Backend/
+    owner: root
+    group: root
+    mode: 0755
+
 - name: Копировать docker-compose файл
   copy:
     src: files/docker-compose.frontend_backend.yml
