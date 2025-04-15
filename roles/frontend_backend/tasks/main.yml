@@ -18,7 +18,7 @@
     mode: 0600
 
 - name: Сгенерировать самоподписанный сертификат
-  community.crypto.openssl_certificate:
+  community.crypto.x509_certificate:
     path: /opt/korotkosilka/certs/fullchain.pem
     privatekey_path: /opt/korotkosilka/certs/privkey.pem
     provider: selfsigned
