@@ -11,19 +11,18 @@
     mode: 0755
 
 - name: Сгенерировать приватный ключ для сертификата
-  community.crypto.openssl_privatekey:
-    path: /opt/korotkosilka/certs/privkey.pem
-    size: 2048
-    type: RSA
-    mode: 0600
+  command: openssl genrsa -out /opt/korotkosilka/certs/privkey.pem 2048
+  args:
+    creates: /opt/korotkosilka/certs/privkey.pem
 
 - name: Сгенерировать самоподписанный сертификат
-  community.crypto.x509_certificate:
-    path: /opt/korotkosilka/certs/fullchain.pem
-    privatekey_path: /opt/korotkosilka/certs/privkey.pem
-    csr_common_name: korotko.local
-    provider: selfsigned
-    selfsigned_not_after: '+365d'
+  command: >
+    openssl req -x509 -new -nodes -key /opt/korotkosilka/certs/privkey.pem
+    -sha256 -days 365
+    -out /opt/korotkosilka/certs/fullchain.pem
+    -subj "/CN=korotko.local"
+  args:
+    creates: /opt/korotkosilka/certs/fullchain.pem
 
 - name: Установить права на сертификат
   file:
