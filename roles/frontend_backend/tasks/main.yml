@@ -59,3 +59,13 @@
   shell: docker-compose up -d --build
   args:
     chdir: /opt/korotkosilka
+
+- name: Показать логи всех контейнеров после деплоя
+  shell: docker-compose logs --tail=50
+  args:
+    chdir: /opt/korotkosilka
+  register: compose_logs
+
+- name: Вывести логи контейнеров на экран
+  debug:
+    msg: '{{ compose_logs.stdout }}'
