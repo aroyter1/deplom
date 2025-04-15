@@ -21,10 +21,14 @@
   community.crypto.x509_certificate:
     path: /opt/korotkosilka/certs/fullchain.pem
     privatekey_path: /opt/korotkosilka/certs/privkey.pem
+    csr_common_name: korotko.local
     provider: selfsigned
-    subject: '/CN=korotko.local'
-    days: 365
-    mode: 0644
+    selfsigned_not_after: '+365d'
+
+- name: Установить права на сертификат
+  file:
+    path: /opt/korotkosilka/certs/fullchain.pem
+    mode: '0644'
 
 - name: Копировать docker-compose файл
   copy:
