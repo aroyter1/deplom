@@ -1,3 +1,9 @@
+- name: Создать директорию /opt/monitoring
+  file:
+    path: /opt/monitoring
+    state: directory
+    mode: 0755
+
 - name: Проверка роли monitoring
   debug:
     msg: 'Роль monitoring работает!'

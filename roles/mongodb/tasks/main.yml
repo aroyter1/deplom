@@ -1,6 +1,8 @@
-- name: Проверка роли mongodb
-  debug:
-    msg: 'Роль mongodb работает!'
+- name: Создать директорию /opt/korotkosilka
+  file:
+    path: /opt/korotkosilka
+    state: directory
+    mode: 0755
 
 - name: Копировать docker-compose файл
   copy:
