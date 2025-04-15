@@ -1,0 +1,26 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: Установить Docker и Docker Compose
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: yes
+
+- hosts: frontend_backend
+  become: yes
+  roles:
+    - frontend_backend
+
+- hosts: mongodb
+  become: yes
+  roles:
+    - mongodb
+
+- hosts: backend_replica
+  become: yes
+  roles:
+    - backend_replica
+    - monitoring

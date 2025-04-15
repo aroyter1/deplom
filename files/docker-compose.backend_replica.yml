@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  backend:
+    build: ./Backend
+    restart: always
+    env_file: ./Backend/.env
+    networks: [korotko-net]
+networks:
+  korotko-net:
+    driver: bridge

@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  frontend:
+    build: ./Frontend
+    restart: always
+    env_file: ./Frontend/.env
+    networks: [korotko-net]
+
+  backend:
+    build: ./Backend
+    restart: always
+    env_file: ./Backend/.env
+    networks: [korotko-net]
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
+      - backend
+    networks: [korotko-net]
+
+networks:
+  korotko-net:
+    driver: bridge
