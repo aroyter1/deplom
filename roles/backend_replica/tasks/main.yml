@@ -1,3 +1,18 @@
 - name: Проверка роли backend_replica
   debug:
     msg: 'Роль backend_replica работает!'
+
+- name: Копировать docker-compose файл
+  copy:
+    src: files/docker-compose.backend_replica.yml
+    dest: /opt/korotkosilka/docker-compose.yml
+
+- name: Копировать .env для backend
+  copy:
+    src: files/backend.env
+    dest: /opt/korotkosilka/Backend/.env
+
+- name: Запустить backend-реплику
+  shell: docker-compose up -d --build
+  args:
+    chdir: /opt/korotkosilka

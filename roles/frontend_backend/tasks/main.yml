@@ -1,3 +1,34 @@
 - name: Проверка роли frontend_backend
   debug:
     msg: 'Роль frontend_backend работает!'
+
+- name: Копировать docker-compose файл
+  copy:
+    src: files/docker-compose.frontend_backend.yml
+    dest: /opt/korotkosilka/docker-compose.yml
+
+- name: Копировать .env для backend
+  copy:
+    src: files/backend.env
+    dest: /opt/korotkosilka/Backend/.env
+
+- name: Копировать .env для frontend
+  copy:
+    src: files/frontend.env
+    dest: /opt/korotkosilka/Frontend/.env
+
+- name: Копировать nginx.conf
+  copy:
+    src: files/nginx.conf
+    dest: /opt/korotkosilka/nginx.conf
+
+- name: Копировать сертификаты
+  copy:
+    src: files/certs/
+    dest: /opt/korotkosilka/certs/
+    mode: 0644
+
+- name: Запустить сервисы через Docker Compose
+  shell: docker-compose up -d --build
+  args:
+    chdir: /opt/korotkosilka

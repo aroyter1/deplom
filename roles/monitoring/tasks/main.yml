@@ -1,3 +1,26 @@
 - name: Проверка роли monitoring
   debug:
     msg: 'Роль monitoring работает!'
+
+- name: Копировать docker-compose файл мониторинга
+  copy:
+    src: files/docker-compose.monitoring.yml
+    dest: /opt/monitoring/docker-compose.yml
+
+- name: Копировать скрипт бэкапа
+  copy:
+    src: files/backup_mongo.sh
+    dest: /opt/monitoring/backup_mongo.sh
+    mode: 0755
+
+- name: Добавить cron для бэкапа
+  cron:
+    name: 'MongoDB backup every 12 hours'
+    job: '/opt/monitoring/backup_mongo.sh'
+    minute: '0'
+    hour: '*/12'
+
+- name: Запустить мониторинг
+  shell: docker-compose up -d
+  args:
+    chdir: /opt/monitoring

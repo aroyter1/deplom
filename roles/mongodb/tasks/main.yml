@@ -1,3 +1,22 @@
 - name: Проверка роли mongodb
   debug:
     msg: 'Роль mongodb работает!'
+
+- name: Копировать docker-compose файл
+  copy:
+    src: files/docker-compose.mongodb.yml
+    dest: /opt/korotkosilka/docker-compose.yml
+
+- name: Создать папки для данных и бэкапов
+  file:
+    path: '{{ item }}'
+    state: directory
+    mode: 0755
+  loop:
+    - /opt/korotkosilka/data
+    - /opt/korotkosilka/backups
+
+- name: Запустить MongoDB
+  shell: docker-compose up -d
+  args:
+    chdir: /opt/korotkosilka
