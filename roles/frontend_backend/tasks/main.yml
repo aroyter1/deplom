@@ -9,16 +9,6 @@
     src: files/docker-compose.frontend_backend.yml
     dest: /opt/korotkosilka/docker-compose.yml
 
-- name: Копировать .env для backend
-  copy:
-    src: files/backend.env
-    dest: /opt/korotkosilka/Backend/.env
-
-- name: Копировать .env для frontend
-  copy:
-    src: files/frontend.env
-    dest: /opt/korotkosilka/Frontend/.env
-
 - name: Копировать nginx.conf
   copy:
     src: files/nginx.conf
